@@ -12,11 +12,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 
-CCpuStats::CCpuStats(int* data, int size)
-    : m_cpuLoad(data)
-    , m_size(size)
+CCpuStats::CCpuStats()
 {
     m_cpus = getCPUcount();
     //  printf("We have %d cpu's:\n", m_cpus);
@@ -27,22 +24,12 @@ CCpuStats::~CCpuStats()
 {
 }
 
-void CCpuStats::Update(float dt)
-{
-    for (int i = m_size - 1; i > 0; i--)
-    {
-        assert(i - 1 >= 0);
-        m_cpuLoad[i] = m_cpuLoad[i - 1];
-    }
-    m_cpuLoad[0] = getCurrentCPUload(dt);
-}
-
 int CCpuStats::getCurrentCPUload(float dt)
 {
-    int ret = 0;
+    int result = 0;
 
     FILE* f = fopen("/proc/stat", "r");
-    if (f != 0)
+    if (f != nullptr)
     {
         char buf[200];
         while (fgets(buf, sizeof(buf), f))
@@ -67,7 +54,7 @@ int CCpuStats::getCurrentCPUload(float dt)
                 }
                 //printf("\n");
 
-                ret = (tmp[0] + tmp[1] + tmp[2] + tmp[4] + tmp[5] + tmp[6]) / m_cpus;
+                result = (tmp[0] + tmp[1] + tmp[2] + tmp[4] + tmp[5] + tmp[6]) / m_cpus;
                 break;
             }
         }
@@ -75,24 +62,25 @@ int CCpuStats::getCurrentCPUload(float dt)
         fclose(f);
     }
 
-    return ret;
+    return result;
 }
 
 int CCpuStats::getCPUcount()
 {
     //from http://www.cplusplus.com/forum/unices/6544/
-    char res[128] = { 0 };
+    char buffer[128] = { 0 };
     FILE* f = popen("/bin/cat /proc/cpuinfo | grep -c '^processor'", "r");
-    if (f != 0)
+    if (f != nullptr)
     {
-        fread(res, 1, sizeof(res) - 1, f);
+        auto result = fread(buffer, 1, sizeof(buffer) - 1, f);
+        (void)result;
         pclose(f);
 
-        if (res[0] != 0)
+        if (buffer[0] != 0)
         {
-            return atoi(res);
+            return atoi(buffer);
         }
     }
 
-    return 0;
+    return 1;
 }

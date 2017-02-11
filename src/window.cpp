@@ -15,25 +15,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-CWindow::CWindow(const int size)
-    : m_size(size)
-    , m_width(size)
-    , m_height(16)
-    , m_quit(false)
-{
-    m_data.resize(size, 0);
-    m_rcCPU.resize(m_size);
-
-    m_stat.reset(new CCpuStats(&m_data[0], size));
-}
-
-CWindow::~CWindow()
-{
-}
-
 bool CWindow::Open(const char* className, const char* instance)
 {
-    if (instance == 0)
+    if (instance == nullptr)
     {
         instance = className;
     }
@@ -87,7 +71,7 @@ bool CWindow::Open(const char* className, const char* instance)
     // }
 
     // // get actual window size
-    // xcb_get_geometry_reply_t* geom = xcb_get_geometry_reply(m_c, xcb_get_geometry(m_c, m_w), NULL);
+    // xcb_get_geometry_reply_t* geom = xcb_get_geometry_reply(m_c, xcb_get_geometry(m_c, m_w), nullptr);
     // printf("Actual window size: %d x %d, %d x %d\n", geom->x, geom->y, geom->width, geom->height); fflush(stdout);
     // m_height = geom->height;
     // free(geom);
@@ -118,7 +102,7 @@ void CWindow::EventLoop()
 {
     pthread_t thread;
     int rc;
-    if ((rc = pthread_create(&thread, NULL, &fnThread, this)))
+    if ((rc = pthread_create(&thread, nullptr, &fnThread, this)))
     {
         printf("Thread creation failed: %d\n", rc);
     }
@@ -152,7 +136,7 @@ void CWindow::EventLoop()
         case XCB_RESIZE_REQUEST:
         {
             // get actual window size
-            xcb_get_geometry_reply_t* geom = xcb_get_geometry_reply(m_c, xcb_get_geometry(m_c, m_w), NULL);
+            xcb_get_geometry_reply_t* geom = xcb_get_geometry_reply(m_c, xcb_get_geometry(m_c, m_w), nullptr);
             m_height = geom->height;
             free(geom);
             // force setup desired size of window
@@ -168,14 +152,14 @@ void CWindow::EventLoop()
         free(e);
     }
 
-    pthread_join(thread, NULL);
+    pthread_join(thread, nullptr);
 }
 
 double CWindow::getTime()
 {
-    struct timeval timev;
-    gettimeofday(&timev, NULL);
-    return (double)timev.tv_sec + (((double)timev.tv_usec) / 1000000);
+    timeval t;
+    gettimeofday(&t, nullptr);
+    return t.tv_sec + t.tv_usec * 0.0000001;
 }
 
 void CWindow::cleanPixmap()
@@ -195,16 +179,17 @@ void CWindow::forceUpdateWindow()
     xcb_change_gc(m_c, m_g, XCB_GC_FOREGROUND, val);
 
     // prepare pixmap
-    for (int x = 0; x < m_size; x++)
+    const auto size = m_data.size();
+    std::vector<xcb_rectangle_t> rc(size);
+    for (size_t i = 0; i < size; i++)
     {
-        int h = static_cast<int>(m_data[x] / 100.0f * m_height);
-        int y = m_height - h;
-        m_rcCPU[x].x = x;
-        m_rcCPU[x].y = y;
-        m_rcCPU[x].width = 1;
-        m_rcCPU[x].height = m_height;
+        int h = (int)(m_height * m_data.get((i + 1) % size) * 0.01f);
+        rc[i].x = i;
+        rc[i].y = m_height - h;
+        rc[i].width = 1;
+        rc[i].height = m_height;
     }
-    xcb_poly_fill_rectangle(m_c, m_pixmapId, m_g, m_size, &m_rcCPU[0]);
+    xcb_poly_fill_rectangle(m_c, m_pixmapId, m_g, size, rc.data());
 
     // send exposure event
     static xcb_expose_event_t ev;
@@ -221,21 +206,26 @@ void CWindow::forceUpdateWindow()
 
 void* CWindow::fnThread(void* p)
 {
-    CWindow* win = (CWindow*)p;
+    auto& w = *static_cast<CWindow*>(p);
 
-    const double interval = 1;
-    double start = win->getTime();
-    while (win->m_quit == false)
+    auto start = w.getTime();
+    const auto interval = 1.0;
+
+    while (w.m_quit == false)
     {
         usleep(100000);
-        double now = win->getTime();
-        if (now - start >= interval)
+
+        const auto now = w.getTime();
+        const auto dt = now - start;
+        if (dt >= interval)
         {
-            win->m_stat->Update(now - start);
-            win->forceUpdateWindow();
+            const auto value = w.m_stat.getCurrentCPUload(dt);
+            w.m_data.addValue(value);
+
+            w.forceUpdateWindow();
             start = now;
         }
     }
 
-    return 0;
+    return nullptr;
 }

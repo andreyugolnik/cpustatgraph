@@ -14,8 +14,8 @@
 
 int main()
 {
-    printf("CPU Statistic History v0.1.4 by Andrey A. Ugolnik\n");
-    printf("Copyright (c) 2009, 2010, 2015\n");
+    printf("CPU Statistic History v0.1.5 by Andrey A. Ugolnik\n");
+    printf("Copyright (c) 2009, 2010, 2015, 2017\n");
     printf("   http://www.ugolnik.info\n");
     printf("   mailto:andrey@ugolnik.info\n");
 
@@ -27,7 +27,7 @@ int main()
         return 0;
     }
 
-    CWindow win(80);
+    CWindow win;
     if (win.Open("CpuStatGraph", "cpustatgraph") == false)
     {
         return -1;

@@ -1,17 +1,25 @@
-CC=g++
-CFLAGS=-O2 -c -Wall -std=c++11 -I/usr/include
-LDFLAGS=-s -lxcb -lpthread
-SOURCES=src/cpustats.cpp src/window.cpp src/main.cpp
-OBJECTS=$(SOURCES:.cpp=.o)
-EXECUTABLE=cpustatgraph
+BUILD_DIR_RELEASE=.build_release
+BUILD_DIR_DEBUG=.build_debug
 
-all: $(SOURCES) $(EXECUTABLE)
+all:
+	@echo "Usage:"
+	@echo "    make <release | debug>"
+	@echo "    make <check>"
+	@echo "    make <clean>"
 
-$(EXECUTABLE): $(OBJECTS)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+release:
+	$(shell if [ ! -d $(BUILD_DIR_RELEASE) ]; then mkdir $(BUILD_DIR_RELEASE); fi )
+	cd $(BUILD_DIR_RELEASE) ; cmake -DCMAKE_BUILD_TYPE=Release .. ; make ; cd ..
+	cp $(BUILD_DIR_RELEASE)/cpustatgraph .
 
-.cpp.o:
-	$(CC) $(CFLAGS) $< -o $@
+debug:
+	$(shell if [ ! -d $(BUILD_DIR_DEBUG) ]; then mkdir $(BUILD_DIR_DEBUG); fi )
+	cd $(BUILD_DIR_DEBUG) ; cmake -DCMAKE_BUILD_TYPE=Debug .. ; make ; cd ..
+	cp $(BUILD_DIR_DEBUG)/cpustatgraph .
+
+check:
+	cppcheck -j 1 --enable=all -f -I src src/ 2> cppcheck-output
 
 clean:
-	rm -f src/*.o
+	rm -fr $(BUILD_DIR_RELEASE) $(BUILD_DIR_DEBUG) cpustatgraph cppcheck-output
+
